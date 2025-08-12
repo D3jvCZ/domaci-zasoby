@@ -1,1 +1,687 @@
-[SEM PŘIJDE CELÝ AKTUÁLNÍ KÓD HTML Z DOKUMENTU]
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Domácí zásoby – skener čárových kódů</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --card: #121a33;
+      --muted: #8aa0ff;
+      --text: #e9ecff;
+      --ok: #15b37d;
+      --warn: #ffb020;
+      --danger: #ff5d5d;
+      --shadow: 0 10px 30px rgba(0,0,0,.25);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; background: linear-gradient(180deg, #0a0f1f, #0e1430 35%, #0a0f1f); color: var(--text); }
+    header { position: sticky; top: 0; z-index: 5; backdrop-filter: blur(10px); background: rgba(11,16,32,.7); border-bottom: 1px solid rgba(138,160,255,.18); }
+    .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    h1 { font-size: 22px; margin: 8px 0; letter-spacing: .3px; }
+    .pill { display: inline-flex; gap: 8px; align-items: center; padding: 10px 14px; border-radius: 999px; background: var(--card); border: 1px solid rgba(138,160,255,.15); box-shadow: var(--shadow); cursor: pointer; user-select: none; }
+    .pill:active { transform: translateY(1px); }
+    .pill.primary { background: linear-gradient(180deg, #263773, #1b2755); }
+    .pill.success { background: linear-gradient(180deg, #0f3b2f, #0a2a22); }
+    .pill.warning { background: linear-gradient(180deg, #4a3710, #2e230d); }
+    .pill.danger { background: linear-gradient(180deg, #4a1414, #2e0d0d); }
+    .pill span { font-weight: 600; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
+    @media (min-width: 900px) { .grid { grid-template-columns: 1.1fr .9fr; } }
+    .card { background: var(--card); border: 1px solid rgba(138,160,255,.15); border-radius: 20px; box-shadow: var(--shadow); }
+    .card h2 { font-size: 18px; margin: 0 0 12px; }
+    .card .content { padding: 16px; }
+    .muted { color: #a9b4ff; opacity: .9; }
+    .video-wrap { position: relative; background: #000; border-radius: 14px; overflow: hidden; border: 1px solid rgba(138,160,255,.2); }
+    video { width: 100%; height: auto; display: block; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: rgba(138,160,255,.12); border: 1px solid rgba(138,160,255,.2); font-size: 12px; }
+    .table-wrap { overflow: auto; border-radius: 14px; border: 1px solid rgba(138,160,255,.2); }
+    table { width: 100%; border-collapse: collapse; min-width: 760px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(138,160,255,.15); }
+    thead th { position: sticky; top: 0; background: #151e3b; z-index: 1; }
+    tr.low td { background: linear-gradient(90deg, rgba(255,93,93,.10), transparent 55%); }
+    tr.zero td { background: linear-gradient(90deg, rgba(255,176,32,.12), transparent 55%); }
+    input, select { background: #0f1731; color: var(--text); border: 1px solid rgba(138,160,255,.3); border-radius: 10px; padding: 10px 12px; outline: none; width: 100%; }
+    input::placeholder { color: #b8c3ff; opacity: .7; }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+    .toolbar > * { flex: 1 1 auto; }
+    .toolbar .pill { flex: 0 0 auto; }
+    .actions button { margin-right: 8px; }
+    button { background: #1e2a54; color: var(--text); border: 1px solid rgba(138,160,255,.3); padding: 8px 10px; border-radius: 10px; cursor: pointer; }
+    button:hover { filter: brightness(1.05); }
+    footer { opacity: .7; font-size: 12px; padding: 12px 0 18px; text-align: center; }
+    dialog { border: 1px solid rgba(138,160,255,.25); border-radius: 16px; background: #0e1430; color: var(--text); box-shadow: var(--shadow); width: min(520px, 95vw); }
+    dialog::backdrop { background: rgba(0,0,0,.4); }
+    .row-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .row-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .right { text-align: right; }
+    .small { font-size: 12px; opacity: .8; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container row" style="justify-content: space-between;">
+      <div>
+        <h1>Domácí zásoby</h1>
+        <div class="small muted">Skenujte čárové/QR kódy, evidujte položky a hlídejte, co dochází.</div>
+      </div>
+      <div class="toolbar">
+        <button class="pill primary" id="btnStartScan">📷 <span>Spustit skenování</span></button>
+        <button class="pill" id="btnStopScan">⏹️ <span>Zastavit</span></button>
+        <button class="pill success" id="btnAddManual">➕ <span>Přidat ručně</span></button>
+        <button class="pill" id="btnExport">⬇️ <span>Export</span></button>
+        <label class="pill" for="fileImport" style="cursor:pointer">⬆️ <span>Import</span></label>
+        <input type="file" id="fileImport" accept="application/json" style="display:none" />
+        <button class="pill warning" id="btnShare">👥 <span>Sdílení</span></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container grid">
+    <section class="card">
+      <div class="content">
+        <h2>Skener</h2>
+        <div class="row" style="justify-content: space-between; align-items: start;">
+          <div class="badge" id="scanStatus">Neaktivní</div>
+          <div class="small muted">Tip: Na mobilech povolte přístup ke kameře. Nejlépe funguje přes HTTPS.</div>
+        </div>
+        <div class="video-wrap" style="margin-top: 10px;">
+          <video id="video" playsinline></video>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="content">
+        <h2>Filtr & Souhrn</h2>
+        <div class="row" style="gap: 10px;">
+          <input id="search" placeholder="Hledat podle názvu nebo kódu…" />
+          <select id="filter">
+            <option value="all">Vše</option>
+            <option value="low">Dochází</option>
+            <option value="zero">0 ks</option>
+          </select>
+        </div>
+        <div class="row" style="margin-top: 12px; gap: 12px; flex-wrap: wrap;">
+          <div class="badge" id="badgeTotal">Celkem položek: 0</div>
+          <div class="badge" id="badgeLow">Dochází: 0</div>
+          <div class="badge" id="badgeZero">Na nule: 0</div>
+          <div class="badge" id="badgeUpdated">Naposledy: –</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="grid-column: 1 / -1;">
+      <div class="content">
+        <h2>Inventář</h2>
+        <div class="table-wrap">
+          <table id="table">
+            <thead>
+              <tr>
+                <th>Název</th>
+                <th>Kód</th>
+                <th>Množství</th>
+                <th>Minimum</th>
+                <th>Poznámka</th>
+                <th>Upravit</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="container">
+    <div>Lokální uložení v prohlížeči (localStorage). Data můžete exportovat do .json a přenést jinam.</div>
+  </footer>
+
+  <!-- Dialog Sdílení -->
+  <dialog id="shareDlg">
+    <form method="dialog" class="content">
+      <h2>Sdílení mezi zařízeními</h2>
+      <div class="small muted" style="margin-bottom:10px">Vyber jednoduchou variantu <strong>Bez účtu</strong> (tajný kód) nebo nechaj <em>Firebase</em>, pokud už máš účet. Pro jednoduchost doporučuji Bez účtu.</div>
+
+      <label>Režim sdílení<br>
+        <select id="shareMode">
+          <option value="pantry">Bez účtu (tajný kód)</option>
+          <option value="firebase">Firebase (pokročilé)</option>
+        </select>
+      </label>
+
+      <div id="panePantry" style="margin-top:12px">
+        <div class="badge" style="margin-bottom:8px">Bez účtu – zdarma</div>
+        <div class="small muted" style="margin-bottom:8px">1) Otevři <a href="https://getpantry.cloud/" target="_blank">getpantry.cloud</a> → klikni <em>Create Pantry</em> → zkopíruj <code>Pantry ID</code>.<br>2) Vlož ho sem. To stejné udělá i přítelkyně. Hotovo.</div>
+        <label>Pantry ID<br><input id="pantryId" placeholder="např. 3d4c..."/></label>
+      </div>
+
+      <div id="paneFirebase" style="margin-top:12px; display:none">
+        <div class="badge" style="margin-bottom:8px">Firebase – pokročilé</div>
+        <div class="row-grid">
+          <div>
+            <label>API Key<br><input id="fbApiKey" placeholder="AIza..."/></label>
+          </div>
+          <div>
+            <label>Auth Domain<br><input id="fbAuthDomain" placeholder="mojeapp.firebaseapp.com"/></label>
+          </div>
+        </div>
+        <div class="row-grid" style="margin-top:10px;">
+          <div>
+            <label>Project ID<br><input id="fbProjectId" placeholder="mojeapp"/></label>
+          </div>
+          <div>
+            <label>ID domácnosti (List ID)<br>
+              <div class="row" style="gap:8px;">
+                <input id="fbListId" placeholder="např. nase-kuchyn"/>
+                <button id="btnGenListId">🎲</button>
+              </div>
+            </label>
+          </div>
+        </div>
+        <div class="small muted" style="margin-top:8px">Odkaz ke sdílení: <span id="shareLink" class="badge">—</span></div>
+      </div>
+
+      <div class="row" style="justify-content:flex-end; gap:8px; margin-top:14px">
+        <button value="cancel">Zrušit</button>
+        <button class="pill success" id="btnSaveShare" value="default">Uložit & připojit</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ZXing fallback (pouze pokud není BarcodeDetector) -->
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+
+    // ===== Stav a úložiště =====
+    const LS_KEY = 'pantry_inventory_v1';
+    const state = {
+      items: loadItems(),
+      scanning: false,
+      lastUpdated: loadLastUpdated(),
+      remote: {
+        enabled: false,
+        cfg: loadRemoteCfg(),
+        listId: new URLSearchParams(location.search).get('list') || (JSON.parse(localStorage.getItem('pantry_sync_cfg')||'{}').listId)||null,
+        db: null,
+        unsub: null,
+        applying: false,
+      },
+    };
+
+    function loadItems(){
+      try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch { return []; }
+    }
+    function saveItems(){
+      localStorage.setItem(LS_KEY, JSON.stringify(state.items));
+      state.lastUpdated = new Date().toISOString();
+      localStorage.setItem(LS_KEY+':updated', state.lastUpdated);
+      renderBadges();
+      // push do cloudu, pokud je připojeno
+      pushRemote().catch(()=>{});
+    }
+    function loadLastUpdated(){
+      return localStorage.getItem(LS_KEY+':updated') || null;
+    }
+
+    // ===== Pomocné =====
+    const units = ['ks','g','kg','ml','l','balení'];
+    const fmtDate = (iso) => iso ? new Date(iso).toLocaleString() : '–';
+    function findByCode(code){ return state.items.find(i => i.code === code); }
+    function upsertItem(item){
+      const idx = state.items.findIndex(i => i.code === item.code);
+      if(idx > -1) state.items[idx] = item; else state.items.unshift(item);
+      saveItems();
+      renderTable();
+    // automaticky se připojit, pokud je nakonfigurováno
+    if(state.remote.cfg && state.remote.cfg.apiKey && state.remote.listId){
+      connectRemote();
+    }
+    }
+
+    // ===== UI: Badges a tabulka =====
+    function renderBadges(){
+      $('#badgeTotal').textContent = `Celkem položek: ${state.items.length}`;
+      const low = state.items.filter(i => i.quantity <= i.min && i.quantity > 0).length;
+      const zero = state.items.filter(i => i.quantity <= 0).length;
+      $('#badgeLow').textContent = `Dochází: ${low}`;
+      $('#badgeZero').textContent = `Na nule: ${zero}`;
+      $('#badgeUpdated').textContent = `Naposledy: ${fmtDate(state.lastUpdated)}`;
+    }
+
+    function renderTable(){
+      const q = $('#search').value.trim().toLowerCase();
+      const f = $('#filter').value;
+      const tbody = $('#table tbody');
+      tbody.innerHTML = '';
+      state.items
+        .filter(i => !q || i.name.toLowerCase().includes(q) || (i.code||'').includes(q))
+        .filter(i => f === 'all' || (f === 'low' && i.quantity <= i.min && i.quantity > 0) || (f === 'zero' && i.quantity <= 0))
+        .forEach(i => {
+          const tr = document.createElement('tr');
+          if(i.quantity <= 0) tr.classList.add('zero');
+          else if(i.quantity <= i.min) tr.classList.add('low');
+          tr.innerHTML = `
+            <td>${escapeHtml(i.name)}</td>
+            <td class="small muted">${i.code || '—'}</td>
+            <td>
+              <div class="row" style="align-items:center; gap:6px;">
+                <button onclick="changeQty('${i.code}', -1)">−</button>
+                <strong>${Number(i.quantity)}</strong>&nbsp;<span class="small muted">${i.unit}</span>
+                <button onclick="changeQty('${i.code}', +1)">+</button>
+              </div>
+            </td>
+            <td>${i.min} <span class="small muted">${i.unit}</span></td>
+            <td class="small">${escapeHtml(i.note||'')}</td>
+            <td class="actions">
+              <button onclick="editItem('${i.code}')">✏️</button>
+              <button onclick="removeItem('${i.code}')">🗑️</button>
+            </td>`;
+          tbody.appendChild(tr);
+        });
+      renderBadges();
+    }
+
+    function escapeHtml(str){
+      return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s]));
+    }
+
+    // ===== Změny množství / edit / delete =====
+    window.changeQty = (code, delta) => {
+      const item = findByCode(code); if(!item) return;
+      item.quantity = Math.max(0, Number(item.quantity||0) + delta);
+      item.updatedAt = new Date().toISOString();
+      saveItems();
+      renderTable();
+    };
+
+    window.editItem = (code) => {
+      const item = findByCode(code); if(!item) return;
+      openItemDialog({ ...item });
+    };
+
+    window.removeItem = (code) => {
+      const idx = state.items.findIndex(i => i.code === code);
+      if(idx>-1 && confirm('Opravdu smazat položku?')){
+        state.items.splice(idx,1);
+        saveItems();
+        renderTable();
+      }
+    };
+
+    // ===== Dialog pro přidání / úpravu =====
+    const dlg = document.createElement('dialog');
+    dlg.innerHTML = `
+      <form method="dialog" class="content">
+        <h2 id="dlgTitle">Přidat položku</h2>
+        <div class="row-grid">
+          <div>
+            <label>Název<br><input id="fName" required placeholder="Např. Špagety"/></label>
+          </div>
+          <div>
+            <label>Kód (EAN/QR)<br><input id="fCode" placeholder="Naskenujte nebo zadejte"/></label>
+          </div>
+        </div>
+        <div class="row-grid-3" style="margin-top: 10px;">
+          <div>
+            <label>Množství<br><input id="fQty" type="number" min="0" step="1" value="1"/></label>
+          </div>
+          <div>
+            <label>Jednotka<br>
+              <select id="fUnit"></select>
+            </label>
+          </div>
+          <div>
+            <label>Minimum<br><input id="fMin" type="number" min="0" step="1" value="1"/></label>
+          </div>
+        </div>
+        <div style="margin-top: 10px;">
+          <label>Poznámka<br><input id="fNote" placeholder="Značka, příchuť…"/></label>
+        </div>
+        <div class="row" style="justify-content: flex-end; margin-top: 14px; gap: 8px;">
+          <button value="cancel">Zrušit</button>
+          <button id="dlgSubmit" class="pill success" value="default">Uložit</button>
+        </div>
+      </form>`;
+    document.body.appendChild(dlg);
+
+    function openItemDialog(item){
+      const isEdit = !!item && !!item.code && !!findByCode(item.code);
+      $('#dlgTitle', dlg).textContent = isEdit ? 'Upravit položku' : 'Přidat položku';
+      const unitSel = dlg.querySelector('#fUnit');
+      unitSel.innerHTML = units.map(u => `<option value="${u}">${u}</option>`).join('');
+      dlg.querySelector('#fName').value = item?.name || '';
+      dlg.querySelector('#fCode').value = item?.code || '';
+      dlg.querySelector('#fQty').value = item?.quantity ?? 1;
+      dlg.querySelector('#fUnit').value = item?.unit || 'ks';
+      dlg.querySelector('#fMin').value = item?.min ?? 1;
+      dlg.querySelector('#fNote').value = item?.note || '';
+
+      dlg.returnValue = '';
+      dlg.showModal();
+
+      dlg.querySelector('#dlgSubmit').onclick = (e) => {
+        e.preventDefault();
+        const newItem = {
+          name: dlg.querySelector('#fName').value.trim() || 'Položka',
+          code: dlg.querySelector('#fCode').value.trim() || '',
+          quantity: Number(dlg.querySelector('#fQty').value) || 0,
+          unit: dlg.querySelector('#fUnit').value,
+          min: Number(dlg.querySelector('#fMin').value) || 0,
+          note: dlg.querySelector('#fNote').value.trim(),
+          updatedAt: new Date().toISOString(),
+        };
+        if(!newItem.code){
+          if(!confirm('Položka nemá kód. Přesto uložit?')) return;
+        }
+        upsertItem(newItem);
+        dlg.close();
+      };
+    }
+
+    // ===== Export / Import =====
+    $('#btnExport').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify({items: state.items, updatedAt: state.lastUpdated}, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `zasoby-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    $('#fileImport').addEventListener('change', (e) => {
+      const file = e.target.files?.[0]; if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          if(Array.isArray(data)) { state.items = data; }
+          else if(data && Array.isArray(data.items)) { state.items = data.items; }
+          else throw new Error('Soubor nemá správný formát');
+          saveItems();
+          renderTable();
+          alert('Import hotov ✅');
+        } catch(err){
+          alert('Neplatný soubor: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+
+    // ===== Vyhledávání / filtry =====
+    $('#search').addEventListener('input', renderTable);
+    $('#filter').addEventListener('change', renderTable);
+
+    // ===== Ruční přidání =====
+    $('#btnAddManual').addEventListener('click', () => openItemDialog({quantity:1, min:1, unit:'ks'}));
+
+    // ===== Skenování čárových kódů =====
+    const scan = {
+      stream: null,
+      detector: null,
+      zxingReader: null,
+      raf: 0,
+    };
+
+    async function startScan(){
+      if(state.scanning) return;
+      try {
+        const constraints = { video: { facingMode: 'environment' } };
+        scan.stream = await navigator.mediaDevices.getUserMedia(constraints);
+        const video = $('#video');
+        video.srcObject = scan.stream;
+        await video.play();
+
+        if('BarcodeDetector' in window){
+          const formats = ['ean_13','ean_8','upc_a','upc_e','code_128','qr_code'];
+          scan.detector = new BarcodeDetector({ formats });
+          loopBarcodeDetector();
+        } else {
+          const { BrowserMultiFormatReader, NotFoundException } = ZXing;
+          scan.zxingReader = new BrowserMultiFormatReader();
+          // Použijeme video element jako vstup (zachytíme snímky)
+          loopZXing();
+        }
+        state.scanning = true;
+        $('#scanStatus').textContent = 'Skenování běží';
+      } catch(err){
+        console.error(err);
+        alert('Nepodařilo se spustit kameru: ' + err.message);
+        stopScan();
+      }
+    }
+
+    function stopScan(){
+      state.scanning = false;
+      $('#scanStatus').textContent = 'Neaktivní';
+      cancelAnimationFrame(scan.raf);
+      if(scan.stream){ scan.stream.getTracks().forEach(t => t.stop()); }
+      $('#video').srcObject = null;
+      scan.detector = null;
+      if(scan.zxingReader){ try{ scan.zxingReader.reset(); }catch{} }
+    }
+
+    async function loopBarcodeDetector(){
+      const video = $('#video');
+      if(!state.scanning) return;
+      try {
+        const codes = await scan.detector.detect(video);
+        if(codes && codes.length){
+          handleCode(codes[0].rawValue || codes[0].rawValue || '');
+          await new Promise(r=>setTimeout(r, 600)); // debounce
+        }
+      } catch(err){ /* ignore frame */ }
+      scan.raf = requestAnimationFrame(loopBarcodeDetector);
+    }
+
+    async function loopZXing(){
+      const video = $('#video');
+      if(!state.scanning) return;
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const luminanceSource = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+        const binarizer = new ZXing.Common.HybridBinarizer(luminanceSource);
+        const bitmap = new ZXing.BinaryBitmap(binarizer);
+        const result = ZXing.MultiFormatReader.decode(bitmap);
+        if(result && result.getText){
+          handleCode(result.getText());
+          await new Promise(r=>setTimeout(r, 600));
+        }
+      } catch(err){ /* no code in this frame */ }
+      scan.raf = requestAnimationFrame(loopZXing);
+    }
+
+    async function handleCode(code){
+      if(!code) return;
+      stopScan();
+      const existing = findByCode(code);
+      if(existing){
+        const choice = confirm(`Nalezeno: ${existing.name}\n\nPřidat 1 ${existing.unit}? (OK = přidat, Zrušit = upravit)');
+        if(choice){ changeQty(code, +1); }
+        else { openItemDialog(existing); }
+      } else {
+        openItemDialog({ code, quantity: 1, min: 1, unit: 'ks' });
+      }
+    }
+
+    // ===== Ovládací prvky skeneru =====
+    $('#btnStartScan').addEventListener('click', startScan);
+    $('#btnStopScan').addEventListener('click', stopScan);
+
+    // ===== Sdílení (Firebase Firestore) =====
+    function loadRemoteCfg(){
+      try { return JSON.parse(localStorage.getItem('pantry_sync_cfg')) || { provider: 'panry' }; } catch { return { provider: 'pantry' }; }
+    }; } catch { return {}; }
+    }
+    function saveRemoteCfg(cfg){
+      localStorage.setItem('pantry_sync_cfg', JSON.stringify(cfg||{}));
+    }
+
+    async function connectRemote(){
+      const cfg = state.remote.cfg || {};
+      if(cfg.provider === 'pantry') return connectPantry();
+      if(cfg.provider === 'firebase') return connectFirebase();
+    }
+
+    async function connectPantry(){
+      const cfg = state.remote.cfg || {}; if(!cfg.pantryId) return;
+      state.remote.enabled = true;
+      try {
+        const res = await fetch(`https://api.getpantry.cloud/apiv1/pantry/${cfg.pantryId}/basket/home-stock`);
+        if(res.ok){
+          const data = await res.json();
+          if(data && Array.isArray(data.items)){
+            if(!state.lastUpdated || (data.updatedAt && data.updatedAt > state.lastUpdated)){
+              state.remote.applying = true;
+              state.items = data.items;
+              localStorage.setItem(LS_KEY, JSON.stringify(state.items));
+              state.lastUpdated = data.updatedAt;
+              localStorage.setItem(LS_KEY+':updated', state.lastUpdated);
+              renderTable();
+              state.remote.applying = false;
+            }
+          }
+        }
+      } catch(e){ console.warn(e); }
+      if(state.remote.pollTimer) clearInterval(state.remote.pollTimer);
+      state.remote.pollTimer = setInterval(async ()=>{
+        try {
+          const res = await fetch(`https://api.getpantry.cloud/apiv1/pantry/${cfg.pantryId}/basket/home-stock`);
+          if(!res.ok) return;
+          const data = await res.json();
+          if(data && data.updatedAt && (!state.lastUpdated || data.updatedAt > state.lastUpdated)){
+            state.remote.applying = true;
+            state.items = Array.isArray(data.items) ? data.items : [];
+            localStorage.setItem(LS_KEY, JSON.stringify(state.items));
+            state.lastUpdated = data.updatedAt;
+            localStorage.setItem(LS_KEY+':updated', state.lastUpdated);
+            renderTable();
+            state.remote.applying = false;
+          }
+        } catch(e){ /* ignore */ }
+      }, 5000);
+    }
+
+    async function connectFirebase(){
+      const cfg = state.remote.cfg || {}; if(!cfg.apiKey || !cfg.projectId || !state.remote.listId) return;
+      try {
+        const [{ initializeApp }, { getAuth, signInAnonymously }, { getFirestore, doc, setDoc, onSnapshot, getDoc }] = await Promise.all([
+          import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js'),
+          import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'),
+          import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js')
+        ]);
+        const app = initializeApp({ apiKey: cfg.apiKey, authDomain: cfg.authDomain, projectId: cfg.projectId });
+        const auth = getAuth(app);
+        await signInAnonymously(auth);
+        const db = getFirestore(app);
+        state.remote.db = db;
+        const ref = doc(db, 'lists', state.remote.listId);
+        const snap = await getDoc(ref);
+        if(!snap.exists()){
+          await setDoc(ref, { items: state.items, updatedAt: state.lastUpdated || new Date().toISOString() });
+        }
+        if(state.remote.unsub) state.remote.unsub();
+        state.remote.unsub = onSnapshot(ref, (docSnap) => {
+          const data = docSnap.data();
+          if(!data) return;
+          if(state.remote.applying) return;
+          const remoteUpdated = data.updatedAt || null;
+          if(!state.lastUpdated || (remoteUpdated && remoteUpdated > state.lastUpdated)){
+            state.remote.applying = true;
+            state.items = Array.isArray(data.items) ? data.items : [];
+            localStorage.setItem(LS_KEY, JSON.stringify(state.items));
+            state.lastUpdated = remoteUpdated;
+            localStorage.setItem(LS_KEY+':updated', state.lastUpdated);
+            renderTable();
+            state.remote.applying = false;
+          }
+        });
+        state.remote.enabled = true;
+        renderBadges();
+      } catch(err){
+        console.error('Remote connect failed', err);
+        alert('Nepodařilo se připojit ke sdílení: ' + err.message);
+      }
+    }
+
+    async function pushRemote(){
+      if(state.remote.applying) return;
+      const cfg = state.remote.cfg || {};
+      if(cfg.provider === 'pantry'){
+        if(!cfg.pantryId) return;
+        try{
+          const payload = { items: state.items, updatedAt: state.lastUpdated };
+          await fetch(`https://api.getpantry.cloud/apiv1/pantry/${cfg.pantryId}/basket/home-stock`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+          });
+        }catch(e){ console.warn('push pantry failed', e); }
+        return;
+      }
+      if(cfg.provider === 'firebase'){
+        if(!state.remote.enabled || !state.remote.db) return;
+        try {
+          const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+          const ref = doc(state.remote.db, 'lists', state.remote.listId);
+          await setDoc(ref, { items: state.items, updatedAt: state.lastUpdated }, { merge: true });
+        } catch(err){ console.warn('pushRemote error', err); }
+      }
+    } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+        const ref = doc(state.remote.db, 'lists', state.remote.listId);
+        await setDoc(ref, { items: state.items, updatedAt: state.lastUpdated }, { merge: true });
+      } catch(err){ console.warn('pushRemote error', err); }
+    }
+
+    const shareDlg = document.getElementById('shareDlg');
+    function openShareDialog(){
+      const cfg = state.remote.cfg || {};
+      shareDlg.querySelector('#fbApiKey').value = cfg.apiKey || '';
+      shareDlg.querySelector('#fbAuthDomain').value = cfg.authDomain || '';
+      shareDlg.querySelector('#fbProjectId').value = cfg.projectId || '';
+      shareDlg.querySelector('#fbListId').value = state.remote.listId || '';
+      updateShareLink();
+      shareDlg.showModal();
+    }
+    function updateShareLink(){
+      const id = shareDlg.querySelector('#fbListId').value.trim();
+      const url = new URL(location.href);
+      if(id) url.searchParams.set('list', id); else url.searchParams.delete('list');
+      shareDlg.querySelector('#shareLink').textContent = id ? url.toString() : '—';
+    }
+
+    document.getElementById('btnShare').addEventListener('click', openShareDialog);
+    document.getElementById('btnGenListId').addEventListener('click', (e)=>{
+      e.preventDefault();
+      const id = 'list-' + Math.random().toString(36).slice(2,8) + '-' + Math.random().toString(36).slice(2,6);
+      shareDlg.querySelector('#fbListId').value = id;
+      updateShareLink();
+    });
+    shareDlg.querySelector('#fbListId').addEventListener('input', updateShareLink);
+
+    document.getElementById('btnSaveShare').addEventListener('click', async (e)=>{
+      e.preventDefault();
+      state.remote.cfg = {
+        apiKey: shareDlg.querySelector('#fbApiKey').value.trim(),
+        authDomain: shareDlg.querySelector('#fbAuthDomain').value.trim(),
+        projectId: shareDlg.querySelector('#fbProjectId').value.trim(),
+      };
+      state.remote.listId = shareDlg.querySelector('#fbListId').value.trim();
+      saveRemoteCfg({ ...state.remote.cfg, listId: state.remote.listId });
+      shareDlg.close();
+      await connectRemote();
+      if(state.remote.enabled) alert('Sdílení připojeno ✅
+Použijte stejný projekt a ID na druhém zařízení.');
+    });
+
+    // ===== Inicializace =====
+    renderTable();
+  </script>
+</body>
+</html>
